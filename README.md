@@ -22,9 +22,9 @@ Verilog是用于设计FPGA电路的一门语言，可以用类C语言风格编�
 
 1. Xilinx官方开发板说明书，电路图，示例实验
 
-   [Nexys使用说明书](resourses/Nexys4 User Manaual.pdf )
+   [Nexys使用说明书](resourses/Nexys4UserManaual.pdf )
 
-   [Nexys内部接口说明](resourses/Nexys4 Circuit.pdf)
+   [Nexys内部接口说明](resourses/Nexys4Circuit.pdf)
 
    [实验１](resourses/lab1.pdf)
 
