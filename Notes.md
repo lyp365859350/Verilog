@@ -13,7 +13,6 @@
 十六进制，如4'ha，表示位宽为4的十六进制数字a；\
 Verilog默认为32位宽10进制数，可以在数字中加入下划线增加代码可读性比如：16'b1001_1110_0010_0001
 
-
 **3.标识符**
 
 用于定义模块名、端口名、信号名等；\
@@ -322,4 +321,78 @@ end
 //casez语句：比较时不用考虑z
 //casex语句：比较时不用考虑x和z
 ```
+
+**15.状态机**
+有限状态机（Finite State Machine），简称状态机，指在有限个状态间按一定的规律转换的时序电路，根据输出是否依赖当前输入分为`Mealy状态机`和`Moore状态机`。
+
+![1556640202915](assets/1556640202915.png)
+
+![1556640425414](assets/1556640425414.png)
+
+状态寄存器由一组触发器组成，由来记忆状态机当前所处的状态，状态的改变只发生在时钟的跳变沿。状态是否改变以及如何改变，取决于组合逻辑F的输出，F是当前状态和输入信号的函数。状态机的输出由组合逻辑G提供，在Mealy状态机中，G依赖于当前状态和输入，而在Moore状态机中，G只依赖于当前状态。
+
+状态机设计四段论
+
+1. **定义状态空间**：列举所有可能出现的状态，定义存储当前状态和下一个状态的寄存器
+
+   ```verilog
+   //定义状态空间，编码方式可以是one-hot, binary
+   parameter A = 2'b00;
+   parameter B = 2'b01;
+   parameter C = 2'b10;
+   parameter D = 2'b11;
+   //存储状态的寄存器
+   reg[1:0] current_state;
+   reg[1:0] next_state;
+   ```
+
+2. **状态跳转**：在时钟跳变沿进行当前状态的跳转。
+
+   ```verilog
+   always @(posedge clk or negedge rst) begin
+       if(!rst)
+           current_state <= A;
+       else
+           current_state <= next_state;
+   end
+   ```
+
+3. **下一个状态的判断**：根据当前状态和输入决定下一个状态是什么。
+
+   ```verilog
+   always @(current_state or input_signal) begin
+       case(current_state)
+           A: begin
+               if(input_signal)
+                   next_state = B;
+               else
+                   next_state = C;
+           end
+           B: begin
+               if(input_signal)
+                   next_state = C;
+               else
+                   next_state = D;
+           end
+           //其他...
+           default:
+               //...
+       endcase
+   end
+   ```
+
+   
+
+4. **各个状态下的输出或动作**
+
+   ```verilog
+   always @(current_state) begin
+       if(current_state == A)
+           y = 1'b1;
+       else
+           y = 1'b0;
+   end
+   ```
+
+![1556641512461](assets/1556641512461.png)
 
