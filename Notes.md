@@ -23,7 +23,10 @@ Verilog默认为32位宽10进制数，可以在数字中加入下划线增加代
 
 **4.时序逻辑和组合逻辑**
 
-在`always`语句块中，由时钟信号驱动的（时钟的上升沿或下降沿）的叫做*时序逻辑*，由电平信号驱动的叫做*组合逻辑*
+根据逻辑功能把数字电路分为`组合逻辑电路`和`时序逻辑电路`。\
+组合逻辑电路中，任意时刻的输出只取决于该时刻的输入，与电路原来状态无关。\
+时序逻辑电路中，任何时刻的输出不仅取决于当前的输入，还与电路原来的状态有关，即与之前的输入有关，因此时序逻辑必须具备记忆功能。
+
 
 
 **5.数据类型**
@@ -113,6 +116,7 @@ c = {a[2:0],b[3:0]}      //将a的低3位和b的低4位进行拼接
 | default | case语句默认分支 |
 | if / else | if / else语句　|
 | for | for语句标志　|
+| # | 延时标志 |
 
 
 **9.Verilog程序框架**
@@ -122,7 +126,7 @@ Verilog的基本设计单元是“模块”(block)，一个模块包含４个部
 module func(a,b,c,d);   //模块名称和端口定义
     /* I/O说明 */
     input wire a,b;
-    ouput wire c,d;
+    output wire c,d;
 
     /* 内部信号声明　*/
     reg[3:0] y;
@@ -136,7 +140,186 @@ module func(a,b,c,d);   //模块名称和端口定义
 endmodule
 ```
 
-**10.Verilog语句**
+**10.Verilog语句块**
 
 *assign语句* 
-> 
+> 描述组合逻辑，赋值语句
+
+*always语句*
+> 描述组合逻辑或时序逻辑，循环语句
+
+*实例化元件语句*
+```verilog
+and u1(c,a,b);  //实例化一个与门
+module_name example(.a(x),.b(y));   //实例化一个模块
+```
+
+
+**注意** 
+> Verilog语句块内可能是并行也可能是串行，但是不同语句块之间是并行执行的，这是Verilog跟C语言最本质的差别，在Verilog中语句块的顺序不影响执行结果。
+
+
+**11.模块的调用**
+在Verilog中有一个`顶层模块`（类似Ｃ语言的main函数），顶层模块可以`调用`（也叫例化）其他模块、IP核（类似于库函数）等，例如：
+```verilog
+//file1.v
+module time_count(clk,rst,flag);
+    input clk,rst;
+    output flag;
+    //...
+endmodule
+
+//file2.v
+module top_module(a,b,c,d);
+    input a,b,c;
+    output d;
+    //例化一个time_count模块，注意模块的输出端口必须传入wire型变量
+    time_count counter(.clk(a), .rst(b), .flag(c)); 
+    //...
+
+endmodule
+```
+
+可以通过下面的语法来强制改变被调用模块中非输入输出端口的值
+```verilog
+//file1.v
+module time_count(clk,rst,flag);
+    input clk,rst;
+    output flag;
+    parameter what = 4'b1000;
+    //...
+endmodule
+
+//file2.v
+module top_module(a,b,c,d);
+    input a,b,c;
+    output d;
+    parameter WHAT = 4'b1111;
+    //例化一个time_count模块，模块中what的值被强制修改成了4'b1111
+    time_count #(.what WHAT) counter(.clk(a), .rst(b), .flag(c)); 
+    //...
+
+endmodule
+```
+
+**12.结构语句**
+
+*initial语句块*
+> 用于产生仿真测试信号（激励信号），只执行一次，可以用于对存储器赋初值，例如：
+```verilog
+initial 
+    begin
+        //使用非阻塞赋值
+        sys_clk <= 1'b0;
+        sys_rst <= 1'b0;
+    end
+```
+
+*always语句块*
+> 可以由时钟驱动或者电平驱动，死循环。
+```verilog
+//模拟周期为20ns的时钟信号（50Mhz）
+always #10 sys_clk <= ~sys_clk;
+
+//边沿触发，时序逻辑，非阻塞赋值
+always @(posedge sys_clk or negedge sys_rst) //敏感列表
+    begin
+        if(sys_rst)
+            counter <= 4'b0000;
+        else
+            counter <= a;
+    end
+
+//电平触发，组合逻辑，阻塞赋值
+//如果敏感列表是语句块中等号右边所有变量，可以写成 @(*)
+always @(a or b or c)
+    begin
+        out1 = a ? b : c;
+        out2 = c ? a : b;
+    end
+```
+
+
+**13.赋值方式**
+
+- 阻塞赋值（blocking）\
+在`always`语句块中，后面的赋值语句是在前面的语句结束后才开始的，使用`=`，例如：
+```verilog
+//时钟上升沿到达后，a,b,c的值都为0
+always @(posedge clk or negedge rst)
+    begin
+        if(!rst)
+            begin
+                a = 2'b01;
+                b = 2'b10;
+                c = 2'b11;
+            end
+        else
+            begin
+                a = 2'b00;
+                b = a;
+                c = b;
+            end
+    end
+```
+
+- 非阻塞赋值（non-blocking）\
+在赋值开始时，计算右边的值；在赋值结束时，同时更新左边的值，使用`<=`，例如：
+```verilog
+//时钟上升沿到达后，a的值变为0，b的值变为1，c的值变为2
+always @(posedge clk or negedge rst)
+    begin
+        if(!rst)
+            begin
+                a <= 2'b01;
+                b <= 2'b10;
+                c <= 2'b11;
+            end
+        else
+            begin
+                a <= 2'b00;
+                b <= a;
+                c <= b;
+            end
+    end
+```
+非阻塞赋值只能对`reg`型变量进行赋值，因此只能在`initial`和`always`等过程块中使用。
+在描述组合逻辑时（always敏感信号为电平信号）使用阻塞赋值，在描述时序逻辑时（always敏感信号为时钟信号）使用非阻塞赋值。不能在一个always块中同时使用阻塞赋值和非阻塞赋值，也不能在多个always中对同一个变量赋值。
+
+
+**14.条件语句**
+
+条件语句必须在过程块（initial或always引导的语句块）中使用。
+```verilog
+//if-else语句，表达式为1时判断为真，表达式为0,x或z时判断为假
+if(表达式1)
+    begin
+    //...
+    end
+else if(表达式2)
+    begin
+    //...
+    end
+else
+    begin
+    //...
+    end
+
+//case语句
+always @(posedge clk or negedge rst) begin
+    if(!rst)
+        led <= 8'b0000_0000;
+    else begin
+        case(num)   //控制表达式
+            4'h0:   led <= 8'b1100_0000;
+            4'h1:   led <= 8'b0100_1100;
+            //...
+            default:    seg <= 8'b1111_1111;
+        endcase 
+    end
+end
+
+//casez语句：比较时不用考虑z
+//casex语句：比较时不用考虑x和z
+```
+
